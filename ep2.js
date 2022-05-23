@@ -1,9 +1,3 @@
-/**
- * Esqueleto de um programa usando WegGL
- * Dessa vez usando as bibliotecas
- * macWebglUtils.js
- * MVnew.js do livro do Angel -- Interactive Computer Graphics
- */
 
 "use strict";
 
@@ -32,6 +26,8 @@ var gCores = [];
 var gObjetos = [];
 var gUltimoT = Date.now();
 
+
+var gRotacao = 0.0;
 // ==================================================================
 window.onload = main;
 
@@ -40,15 +36,12 @@ function main() {
     gl = gCanvas.getContext('webgl2');
     if (!gl) alert("WebGL 2.0 isn't available");
 
-    gObjetos.push(new Triangulo(50, 140, sorteieInteiro(50, 80), -50, 100, sorteieCorRGBA()));
-    gObjetos.push(new Triangulo(150, 240, sorteieInteiro(15, 50), 150, -70, sorteieCorRGBA()));
+    gObjetos.push(new Triangulo(200, 200, sorteieInteiro(30, 40), 50, 50, sorteieCorRGBA()));
+    //gObjetos.push(new Triangulo(150, 240, sorteieInteiro(30, 40), 150, -70, sorteieCorRGBA()));
 
     crieShaders();
 
     gl.clearColor(FUNDO[0], FUNDO[1], FUNDO[2], FUNDO[3]);
-
-    let matrix = mat2(rotate(45, vec3(0,0,1)))
-    console.log(matrix)
 
     desenhe();
 }
@@ -86,6 +79,7 @@ function crieShaders() {
 
     // resolve os uniforms
     gShader.uResolution = gl.getUniformLocation(gShader.program, "uResolution");
+    gShader.uTranslation = gl.getUniformLocation(gShader.program, "uTranslation");
 
 }
 
@@ -94,6 +88,8 @@ function desenhe() {
     let now = Date.now();
     let delta = (now - gUltimoT) / 1000;
     gUltimoT = now;
+
+    gRotacao = (gRotacao + delta*100)%360
 
     // desenha vertices
     gPosicoes = [];
@@ -112,32 +108,32 @@ function desenhe() {
     window.requestAnimationFrame(desenhe);
 }
 
-function aproximeDisco(raio, ref = 3)
+function aproximeTriangulo(raio)
 {
     return [
-        vec2(raio, 0),
-        vec2(0, raio),
-        vec2(-raio, 0),
-    ];
+        vec4(0, raio, 0, 1),
+        vec4(raio/3, 0, 0, 1),
+        vec4(-raio/3, 0, 0, 1) ]
 }
 
-function Triangulo (x, y, r, vx, vy, cor) {
-    this.vertices = aproximeDisco(r, DISCO_RES);
+function Triangulo (x, y, r, vx, vy, cor)
+{
+    this.vertices = aproximeTriangulo(r);
     this.nv = this.vertices.length;
-    this.vel = vec2(vx, vy);
+    this.vel = vec4(vx, vy, 0, 0);
     this.cor = cor;
-    this.pos = vec2(x, y);
-
-    // inicializa buffers
-    let centro = this.pos;
+    this.pos = vec4(x, y, 0, 1);
     let nv = this.nv;
     let vert = this.vertices;
-    for (let i = 0; i < nv; i++) {
-        let k = (i + 1) % nv;
-        gPosicoes.push(centro);
-        gPosicoes.push(add(centro, vert[i])); // translada
-        gPosicoes.push(add(centro, vert[k]));
 
+    for (let i = 0; i < nv; i++)
+    {
+        let matriz_r = rotate(0, vec3(0,0,1));
+        let matriz_t = translate(x, y, 0);
+        let M = mult(matriz_t, matriz_r)
+
+        vert[i] = mult(M, vert[i]);
+        gPosicoes.push(vec2(vert[i][0], vert[i][1]))
         gCores.push(cor);
         gCores.push(cor);
         gCores.push(cor);
@@ -146,54 +142,40 @@ function Triangulo (x, y, r, vx, vy, cor) {
     this.atualize = function (delta)
     {
         this.pos = add(this.pos, mult(delta, this.vel));
+
         let x, y;
         let vx, vy;
-        [x, y] = this.pos;
-        [vx, vy] = this.vel;
+        x = this.pos[0];
+        y = this.pos[1];
+
+        vx = this.vel[0];
+        vy = this.vel[1];
 
         if (x < 0) { x = -x; vx = -vx; }
         if (y < 0) { y = -y; vy = -vy; }
         if (x >= gCanvas.width) { x = gCanvas.width; vx = -vx; }
         if (y >= gCanvas.height) { y = gCanvas.height; vy = -vy; }
-        // console.log(x, y, vx, vy);
-        let centro = this.pos = vec2(x, y);
-        this.vel = vec2(vx, vy);
+
+        this.vel = vec4(vx, vy, 0, 0);
 
         let nv = this.nv;
         let vert = this.vertices;
-        for (let i = 0; i < nv; i++) {
-            let k = (i + 1) % nv;
-            gPosicoes.push(centro);
-            gPosicoes.push(add(centro, vert[i]));
-            gPosicoes.push(add(centro, vert[k]));
+
+        for (let i = 0; i < nv; i++)
+        {
+            let matriz_r = rotateZ(1)
+            let matriz_t1 = translate(-x, -y, 0)
+            let matriz_t2 = translate(x, y, 0)
+
+            vert[i] = mult(matriz_t1, vert[i]);
+            vert[i] = mult(matriz_r, vert[i]);
+            vert[i] = mult(matriz_t2, vert[i]);
+
+            vert[i] = add(vert[i], mult(delta, this.vel));
+
+            gPosicoes.push(vec2(vert[i][0], vert[i][1]));
         }
     }
-}
-
-
-function rotate_2d(angle, axis)
-{
-    if ( axis.length == 2 ) {
-        axis = vec2(axis[0], axis[1]);
-    }
-
-    if(axis.type != 'vec2') throw "rotate: axis not a vec2";
-    var v = normalize( axis );
-
-    var x = v[0];
-    var y = v[1];
-    var z = 1;
-
-    var c = Math.cos( radians(angle) );
-    var omc = 1.0 - c;
-    var s = Math.sin( radians(angle) );
-
-    var result = mat3(
-        x*x*omc + c,   x*y*omc + z*s,
-        x*y*omc - z*s, y*y*omc + c,
-    );
-
-    return result
 }
 
 
