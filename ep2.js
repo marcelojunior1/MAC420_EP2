@@ -36,8 +36,8 @@ function main() {
     gl = gCanvas.getContext('webgl2');
     if (!gl) alert("WebGL 2.0 isn't available");
 
-    gObjetos.push(new Triangulo(200, 200, sorteieInteiro(30, 40), 50, 50, sorteieCorRGBA()));
-    //gObjetos.push(new Triangulo(150, 240, sorteieInteiro(30, 40), 150, -70, sorteieCorRGBA()));
+    gObjetos.push(new Triangulo(0, 0, 0.2, 0.8, 0.8, sorteieCorRGBA()));
+    gObjetos.push(new Triangulo(0, 0.5, 0.2, 0.8, 0.8, sorteieCorRGBA()));
 
     crieShaders();
 
@@ -83,13 +83,13 @@ function crieShaders() {
 
 }
 
+let diminui = true
 
 function desenhe() {
     let now = Date.now();
     let delta = (now - gUltimoT) / 1000;
     gUltimoT = now;
 
-    gRotacao = (gRotacao + delta*100)%360
 
     // desenha vertices
     gPosicoes = [];
@@ -135,7 +135,9 @@ function Triangulo (x, y, r, vx, vy, cor)
         vert[i] = mult(M, vert[i]);
         gPosicoes.push(vec2(vert[i][0], vert[i][1]))
         gCores.push(cor);
-        gCores.push(cor);
+        let nCor = cor
+        nCor[3] -= 0.2
+        gCores.push(nCor);
         gCores.push(cor);
     }
 
@@ -151,10 +153,10 @@ function Triangulo (x, y, r, vx, vy, cor)
         vx = this.vel[0];
         vy = this.vel[1];
 
-        if (x < 0) { x = -x; vx = -vx; }
-        if (y < 0) { y = -y; vy = -vy; }
-        if (x >= gCanvas.width) { x = gCanvas.width; vx = -vx; }
-        if (y >= gCanvas.height) { y = gCanvas.height; vy = -vy; }
+        if (x < -1) { x = -1; vx = -vx; }
+        if (y < -1) { y = -1; vy = -vy; }
+        if (x >= 1) { x = 1; vx = -vx; }
+        if (y >= 1) { y = 1; vy = -vy; }
 
         this.vel = vec4(vx, vy, 0, 0);
 
@@ -163,7 +165,7 @@ function Triangulo (x, y, r, vx, vy, cor)
 
         for (let i = 0; i < nv; i++)
         {
-            let matriz_r = rotateZ(1)
+            let matriz_r = rotateZ(-1)
             let matriz_t1 = translate(-x, -y, 0)
             let matriz_t2 = translate(x, y, 0)
 
@@ -191,11 +193,8 @@ in vec4 aColor;  // buffer com a cor de cada vértice
 out vec4 vColor; // varying -> passado ao fShader
 
 void main() {
-    vec2 escala1 = aPosition / uResolution;
-    vec2 escala2 = escala1 * 2.0;
-    vec2 clipSpace = escala2 - 1.0;
 
-    gl_Position = vec4(clipSpace, 0, 1);
+    gl_Position = vec4(aPosition, 0, 1);
     vColor = aColor; 
 }
 `;
