@@ -1,18 +1,17 @@
 
 "use strict";
 
-// ==================================================================
-// constantes globais
+// -----------------------------------------------------------------------------------------
+//
 
 const FUNDO = [0, 1, 1, 1];
-const DISCO_RES = 3;
-const DISCO_UMA_COR = true;
 
-// ==================================================================
+// -----------------------------------------------------------------------------------------
 // variáveis globais
 var gl;
 var gCanvas;
 var gShader = {};  // encapsula globais do shader
+var gBufCores;
 
 // Os códigos fonte dos shaders serão descritos em
 // strings para serem compilados e passados a GPU
@@ -25,10 +24,9 @@ var gPosicoes = [];
 var gCores = [];
 var gObjetos = [];
 var gUltimoT = Date.now();
+var gLider;
+// -----------------------------------------------------------------------------------------
 
-
-var gRotacao = 0.0;
-// ==================================================================
 window.onload = main;
 
 function main() {
@@ -36,8 +34,9 @@ function main() {
     gl = gCanvas.getContext('webgl2');
     if (!gl) alert("WebGL 2.0 isn't available");
 
-    gObjetos.push(new Triangulo(0, 0, 0.2, 0.8, 0.8, sorteieCorRGBA()));
-    gObjetos.push(new Triangulo(0, 0.5, 0.2, 0.8, 0.8, sorteieCorRGBA()));
+    gObjetos.push(new Triangulo(0, 0, 0.2, 0.5, 0.5, [1,0,0,1]));
+    gObjetos.push(new Triangulo(0, 0.5, 0.2, 0.5, 0.5, sorteieCorRGBA()));
+    gLider = gObjetos[0];
 
     crieShaders();
 
@@ -70,11 +69,11 @@ function crieShaders() {
     gl.enableVertexAttribArray(aPositionLoc);
 
     // buffer de cores
-    var bufCores = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, bufCores);
+    gBufCores = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, gBufCores);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(gCores), gl.STATIC_DRAW);
     var aColorLoc = gl.getAttribLocation(gShader.program, "aColor");
-    gl.vertexAttribPointer(aColorLoc, 4, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(aColorLoc, 4, gl.FLOAT, true, 0, 0);
     gl.enableVertexAttribArray(aColorLoc);
 
     // resolve os uniforms
@@ -82,8 +81,6 @@ function crieShaders() {
     gShader.uTranslation = gl.getUniformLocation(gShader.program, "uTranslation");
 
 }
-
-let diminui = true
 
 function desenhe() {
     let now = Date.now();
@@ -99,8 +96,6 @@ function desenhe() {
     // atualiza o buffer de vertices
     gl.bindBuffer(gl.ARRAY_BUFFER, gShader.bufPosicoes);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(gPosicoes), gl.STATIC_DRAW);
-
-    gl.uniform2f(gShader.uResolution, gCanvas.width, gCanvas.height);
 
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, gPosicoes.length);
@@ -128,18 +123,20 @@ function Triangulo (x, y, r, vx, vy, cor)
 
     for (let i = 0; i < nv; i++)
     {
+        let k = (i + 1) % nv;
+
         let matriz_r = rotate(0, vec3(0,0,1));
         let matriz_t = translate(x, y, 0);
         let M = mult(matriz_t, matriz_r)
 
         vert[i] = mult(M, vert[i]);
         gPosicoes.push(vec2(vert[i][0], vert[i][1]))
-        gCores.push(cor);
-        let nCor = cor
-        nCor[3] -= 0.2
-        gCores.push(nCor);
-        gCores.push(cor);
     }
+    gPosicoes.push(vec2(vert[0][0], vert[0][1]))
+
+    gCores.push(cor);
+    gCores.push(cor);
+    gCores.push(cor);
 
     this.atualize = function (delta)
     {
@@ -188,7 +185,6 @@ gVertexShaderSrc = `#version 300 es
 
 // aPosition é um buffer de entrada
 in vec2 aPosition;
-uniform vec2 uResolution;
 in vec4 aColor;  // buffer com a cor de cada vértice
 out vec4 vColor; // varying -> passado ao fShader
 
