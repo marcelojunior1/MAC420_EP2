@@ -5,7 +5,7 @@
 //
 
 const FUNDO = [0, 0, 0, 1];
-const gRaio = 0.01;
+const gRaio = 0.05;
 
 // -----------------------------------------------------------------------------------------
 // variáveis globais
@@ -44,7 +44,7 @@ function main() {
     let cor =  sorteieCorRGBA();
     for (let i=0; i<gN; i++)
     {
-        gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.1, 0.5, 0.5, cor));
+        gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.06, 2, 2, cor));
     }
 
 
@@ -162,50 +162,96 @@ function Triangulo (x, y, r, vx, vy, cor)
         vx = this.vel[0];
         vy = this.vel[1];
 
-        if (x < -1) { x = -1; vx = -vx; }
-        if (y < -1) { y = -1; vy = -vy; }
-        if (x >= 1) { x = 1; vx = -vx; }
-        if (y >= 1) { y = 1; vy = -vy; }
+        if (x < -1) { x=-1; vx = -vx; }
+        if (y < -1) { y=-1; vy = -vy; }
+        if (x > 1) { x=1; vx = -vx; }
+        if (y > 1) { y=1; vy = -vy; }
 
         this.vel = vec4(vx, vy, 0, 0);
+        this.pos = vec4(x, y, 0, 1)
 
 
         // Atualizacoes para quem nao e lider
         if (this !== gLider)
         {
-            let alvo = gLider.pos;
-
-            let vetor = subtract(alvo, this.pos);
-            let d = length(vetor)
-
-            if (d < gRaio)
+            // Segue o lider
             {
-                let prop = (d*1000)/(gRaio*1000);
-                vetor = mult(prop, vetor)
+                let alvo = gLider.pos;
+                let vetor = subtract(alvo, this.pos);
+                let d = length(vetor);
+
+                if (d > 0.001)
+                {
+                    vetor = subtract(vetor, this.vel);
+                    //this.vel = add(this.vel, vetor);
+                }
             }
 
-            if (d > 0.00001)
-            {
-                let forca = subtract(vetor, this.vel);
 
-                this.vel = add(this.vel, forca);
+            /*
+            // Mantem a distancia
+            {
+                let c = vec4(0,0,0,0);
+                for(let i=0; i<gObjetos.length; i++)
+                {
+                    let obj = gObjetos[i];
+                    if (obj !== this)
+                    {
+                        let vetor = subtract(gObjetos[i].pos, this.pos);
+                        let d = length(vetor);
+                        if (d !== 0 && d < gRaio) { c = subtract(c, vetor); }
+                    }
+                }
+                this.vel = add(this.vel, c);
+            }
+            */
+
+            // Centro de massa
+            {
+                let total = vec4(0,0,0,0);
+
+                for(let i=1; i<gObjetos.length; i++)
+                {
+                    let k = 0;
+                    let obj = gObjetos[i]
+
+                    if (obj !== this) { total = add(total, obj.vel); k++; }
+
+                    //console.log("K: ", k)
+
+                }
+
+                total = mult(1.0/(gObjetos.length-1), total);
+                let vetor = subtract(total, this.vel);
+                vetor = mult(0.01, vetor)
+
+                //console.log(total)
+
+                //this.vel = add(this.vel, vetor);
             }
         }
 
-        this.novo_theta = cut((Math.atan2(this.vel[1], this.vel[0]) * 180)/Math.PI);
 
+
+        if (this === gLider)
+        {
+            this.vel = vec4(0,0,0,0)
+        }
+
+        this.novo_theta = cut((Math.atan2(this.vel[1], this.vel[0]) * 180)/Math.PI);
         let nv = this.nv;
         let vert = this.vertices;
 
-        let rodar = Math.abs(this.theta - this.novo_theta) > 1;
+        // Corrige a direcao do objeto
+        let rodar = Math.abs(this.theta - this.novo_theta) > 0;
         if (rodar)
         {
             for (let i = 0; i < nv; i++)
             {
+                // Rotaciona no proprio centro
                 let matriz_r = rotateZ(this.novo_theta - this.theta)
                 let matriz_t1 = translate(-x, -y, 0)
                 let matriz_t2 = translate(x, y, 0)
-
                 vert[i] = mult(matriz_t1, vert[i]);
                 vert[i] = mult(matriz_r, vert[i]);
                 vert[i] = mult(matriz_t2, vert[i]);
@@ -215,12 +261,10 @@ function Triangulo (x, y, r, vx, vy, cor)
         }
 
 
-
         // Insere os vertices no vetor posicoes
         for (let i = 0; i < nv; i++)
         {
             vert[i] = add(vert[i], mult(delta, this.vel));
-
             gPosicoes.push(vec2(vert[i][0], vert[i][1]));
         }
     }
