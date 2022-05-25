@@ -5,6 +5,7 @@
 //
 
 const FUNDO = [0, 1, 1, 1];
+const gRaio = 0.5;
 
 // -----------------------------------------------------------------------------------------
 // variáveis globais
@@ -25,7 +26,7 @@ var gCores = [];
 var gObjetos = [];
 var gUltimoT = Date.now();
 var gLider;
-
+var gN = 10;
 
 // -----------------------------------------------------------------------------------------
 
@@ -37,9 +38,14 @@ function main() {
     if (!gl) alert("WebGL 2.0 isn't available");
 
 
-    gObjetos.push(new Triangulo(0, 0, 0.2, 0.5, 0.5, [1,0,0,1]));
-    gObjetos.push(new Triangulo(0, 0.5, 0.2, 0.5, 0.5, sorteieCorRGBA()));
+    gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.12, 0.5, 0.5, [1,0,0,1]));
     gLider = gObjetos[0];
+
+    let cor =  sorteieCorRGBA();
+    for (let i=0; i<gN; i++)
+    {
+        gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.1, 0.5, 0.5, cor));
+    }
 
 
     crieShaders();
@@ -159,16 +165,27 @@ function Triangulo (x, y, r, vx, vy, cor)
 
         this.vel = vec4(vx, vy, 0, 0);
 
+
         if (this !== gLider)
         {
             let vetor = subtract(gLider.pos, this.pos);
             let d = length(vetor)
 
-            if (Math.abs(d) > 0.00001)
+            if (d < gRaio)
+            {
+                let prop = (d*1000)/(gRaio*1000);
+                vetor = mult(prop, vetor)
+            }
+
+            if (d > 0.00001)
             {
                 let forca = subtract(vetor, this.vel);
+
                 this.vel = add(this.vel, forca);
             }
+
+            let centro = mult(this.pos, vetor);
+
         }
 
         let nv = this.nv;
@@ -191,28 +208,11 @@ function Triangulo (x, y, r, vx, vy, cor)
     }
 }
 
-function distancia (obj_1, obj_2)
+function sorteie_pos_norm()
 {
-    let x1 = obj_1.pos[0];
-    let y1 = obj_1.pos[1];
-    let x2 = obj_2.pos[0];
-    let y2 = obj_2.pos[1];
-    let width = gCanvas.width;
-    let height = gCanvas.height;
-
-    /*
-    x1 = (x1 + 1) * (width)/(2.0);
-    x2 = (x2 + 1) * (width)/(2.0);
-    y1 = (y1 - 1) * (-height)/(2.0);
-    y2 = (y2 - 1) * (-height)/(2.0);
-
-     */
-
-
-    let d = Math.sqrt((x1-x2)**2 + (y1-y2)**2);
-
-    return d;
+    return (Math.random() * 2) -1;
 }
+
 
 // -----------------------------------------------------------------------
 // Código fonte do Webgl em GLSL
