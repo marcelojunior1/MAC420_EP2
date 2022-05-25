@@ -25,6 +25,8 @@ var gCores = [];
 var gObjetos = [];
 var gUltimoT = Date.now();
 var gLider;
+
+
 // -----------------------------------------------------------------------------------------
 
 window.onload = main;
@@ -34,9 +36,11 @@ function main() {
     gl = gCanvas.getContext('webgl2');
     if (!gl) alert("WebGL 2.0 isn't available");
 
+
     gObjetos.push(new Triangulo(0, 0, 0.2, 0.5, 0.5, [1,0,0,1]));
     gObjetos.push(new Triangulo(0, 0.5, 0.2, 0.5, 0.5, sorteieCorRGBA()));
     gLider = gObjetos[0];
+
 
     crieShaders();
 
@@ -123,8 +127,6 @@ function Triangulo (x, y, r, vx, vy, cor)
 
     for (let i = 0; i < nv; i++)
     {
-        let k = (i + 1) % nv;
-
         let matriz_r = rotate(0, vec3(0,0,1));
         let matriz_t = translate(x, y, 0);
         let M = mult(matriz_t, matriz_r)
@@ -157,6 +159,18 @@ function Triangulo (x, y, r, vx, vy, cor)
 
         this.vel = vec4(vx, vy, 0, 0);
 
+        if (this !== gLider)
+        {
+            let vetor = subtract(gLider.pos, this.pos);
+            let d = length(vetor)
+
+            if (Math.abs(d) > 0.00001)
+            {
+                let forca = subtract(vetor, this.vel);
+                this.vel = add(this.vel, forca);
+            }
+        }
+
         let nv = this.nv;
         let vert = this.vertices;
 
@@ -177,6 +191,28 @@ function Triangulo (x, y, r, vx, vy, cor)
     }
 }
 
+function distancia (obj_1, obj_2)
+{
+    let x1 = obj_1.pos[0];
+    let y1 = obj_1.pos[1];
+    let x2 = obj_2.pos[0];
+    let y2 = obj_2.pos[1];
+    let width = gCanvas.width;
+    let height = gCanvas.height;
+
+    /*
+    x1 = (x1 + 1) * (width)/(2.0);
+    x2 = (x2 + 1) * (width)/(2.0);
+    y1 = (y1 - 1) * (-height)/(2.0);
+    y2 = (y2 - 1) * (-height)/(2.0);
+
+     */
+
+
+    let d = Math.sqrt((x1-x2)**2 + (y1-y2)**2);
+
+    return d;
+}
 
 // -----------------------------------------------------------------------
 // Código fonte do Webgl em GLSL
