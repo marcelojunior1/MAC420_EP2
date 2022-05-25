@@ -7,6 +7,7 @@
 const FUNDO = [0, 0, 0, 1];
 const gRaio = 0.05;
 
+
 // -----------------------------------------------------------------------------------------
 // variáveis globais
 var gl;
@@ -44,7 +45,7 @@ function main() {
     let cor =  sorteieCorRGBA();
     for (let i=0; i<gN; i++)
     {
-        gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.06, 2, 2, cor));
+        gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.06, 0.5, 0.5, cor));
     }
 
 
@@ -174,69 +175,45 @@ function Triangulo (x, y, r, vx, vy, cor)
         // Atualizacoes para quem nao e lider
         if (this !== gLider)
         {
-            // Segue o lider
-            {
-                let alvo = gLider.pos;
-                let vetor = subtract(alvo, this.pos);
-                let d = length(vetor);
 
-                if (d > 0.001)
-                {
-                    vetor = subtract(vetor, this.vel);
-                    //this.vel = add(this.vel, vetor);
-                }
-            }
-
-
-            /*
             // Mantem a distancia
             {
                 let c = vec4(0,0,0,0);
-                for(let i=0; i<gObjetos.length; i++)
+                let k = 0;
+                for(let i=1; i<gObjetos.length; i++)
                 {
                     let obj = gObjetos[i];
+
                     if (obj !== this)
                     {
+                        k++
                         let vetor = subtract(gObjetos[i].pos, this.pos);
                         let d = length(vetor);
-                        if (d !== 0 && d < gRaio) { c = subtract(c, vetor); }
+                        if (d < gRaio) { c = subtract(c, vetor); }
                     }
                 }
                 this.vel = add(this.vel, c);
             }
-            */
 
             // Centro de massa
             {
                 let total = vec4(0,0,0,0);
 
-                for(let i=1; i<gObjetos.length; i++)
+                for(let i=0; i<gObjetos.length; i++)
                 {
                     let k = 0;
                     let obj = gObjetos[i]
 
                     if (obj !== this) { total = add(total, obj.vel); k++; }
-
-                    //console.log("K: ", k)
-
                 }
 
-                total = mult(1.0/(gObjetos.length-1), total);
+                total = mult(1.0/(gObjetos.length-2), total);
                 let vetor = subtract(total, this.vel);
-                vetor = mult(0.01, vetor)
-
-                //console.log(total)
-
-                //this.vel = add(this.vel, vetor);
+                vetor = mult(0.05, vetor)
+                this.vel = add(this.vel, vetor);
             }
         }
 
-
-
-        if (this === gLider)
-        {
-            this.vel = vec4(0,0,0,0)
-        }
 
         this.novo_theta = cut((Math.atan2(this.vel[1], this.vel[0]) * 180)/Math.PI);
         let nv = this.nv;
@@ -256,7 +233,6 @@ function Triangulo (x, y, r, vx, vy, cor)
                 vert[i] = mult(matriz_r, vert[i]);
                 vert[i] = mult(matriz_t2, vert[i]);
             }
-
             this.theta = this.novo_theta;
         }
 
