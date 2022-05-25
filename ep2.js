@@ -4,8 +4,8 @@
 // -----------------------------------------------------------------------------------------
 //
 
-const FUNDO = [0, 1, 1, 1];
-const gRaio = 0.5;
+const FUNDO = [0, 0, 0, 1];
+const gRaio = 0.01;
 
 // -----------------------------------------------------------------------------------------
 // variáveis globais
@@ -128,8 +128,12 @@ function Triangulo (x, y, r, vx, vy, cor)
     this.vel = vec4(vx, vy, 0, 0);
     this.cor = cor;
     this.pos = vec4(x, y, 0, 1);
+    this.theta = 90
+    this.novo_theta = 90;
+
     let nv = this.nv;
     let vert = this.vertices;
+
 
     for (let i = 0; i < nv; i++)
     {
@@ -166,9 +170,12 @@ function Triangulo (x, y, r, vx, vy, cor)
         this.vel = vec4(vx, vy, 0, 0);
 
 
+        // Atualizacoes para quem nao e lider
         if (this !== gLider)
         {
-            let vetor = subtract(gLider.pos, this.pos);
+            let alvo = gLider.pos;
+
+            let vetor = subtract(alvo, this.pos);
             let d = length(vetor)
 
             if (d < gRaio)
@@ -183,24 +190,35 @@ function Triangulo (x, y, r, vx, vy, cor)
 
                 this.vel = add(this.vel, forca);
             }
-
-            let centro = mult(this.pos, vetor);
-
         }
+
+        this.novo_theta = cut((Math.atan2(this.vel[1], this.vel[0]) * 180)/Math.PI);
 
         let nv = this.nv;
         let vert = this.vertices;
 
+        let rodar = Math.abs(this.theta - this.novo_theta) > 1;
+        if (rodar)
+        {
+            for (let i = 0; i < nv; i++)
+            {
+                let matriz_r = rotateZ(this.novo_theta - this.theta)
+                let matriz_t1 = translate(-x, -y, 0)
+                let matriz_t2 = translate(x, y, 0)
+
+                vert[i] = mult(matriz_t1, vert[i]);
+                vert[i] = mult(matriz_r, vert[i]);
+                vert[i] = mult(matriz_t2, vert[i]);
+            }
+
+            this.theta = this.novo_theta;
+        }
+
+
+
+        // Insere os vertices no vetor posicoes
         for (let i = 0; i < nv; i++)
         {
-            let matriz_r = rotateZ(-1)
-            let matriz_t1 = translate(-x, -y, 0)
-            let matriz_t2 = translate(x, y, 0)
-
-            vert[i] = mult(matriz_t1, vert[i]);
-            vert[i] = mult(matriz_r, vert[i]);
-            vert[i] = mult(matriz_t2, vert[i]);
-
             vert[i] = add(vert[i], mult(delta, this.vel));
 
             gPosicoes.push(vec2(vert[i][0], vert[i][1]));
@@ -211,6 +229,11 @@ function Triangulo (x, y, r, vx, vy, cor)
 function sorteie_pos_norm()
 {
     return (Math.random() * 2) -1;
+}
+
+function sorteie_inter_norm(a, b)
+{
+    return (Math.random() * 2*b) + a;
 }
 
 
