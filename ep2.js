@@ -2,87 +2,91 @@
 "use strict";
 
 // -----------------------------------------------------------------------------------------
-//
+// Constantes globais
 
 const FUNDO = [0, 0, 0, 1];
-const gRaio = 0.05;
-
+const gDeltaControl = 0.05;
 
 // -----------------------------------------------------------------------------------------
-// variáveis globais
+// Variaveis globais
+
 var gl;
 var gCanvas;
 var gShader = {};  // encapsula globais do shader
 var gBufCores;
-
-// Os códigos fonte dos shaders serão descritos em
-// strings para serem compilados e passados a GPU
 var gVertexShaderSrc;
 var gFragmentShaderSrc;
-
-// Define o objeto a ser desenhado: uma lista de vértices
-// com coordenadas no intervalo (0,0) a (200, 200)
 var gPosicoes = [];
 var gCores = [];
 var gObjetos = [];
 var gUltimoT = Date.now();
 var gLider;
-var gN = 10;
+var gPause = false;
+var gCorBoids;
+var gBufPosicoes
 
 // -----------------------------------------------------------------------------------------
 
 window.onload = main;
 
+// -----------------------------------------------------------------------------------------
+
 function main() {
+    // Cria o canvas
     gCanvas = document.getElementById("glcanvas");
     gl = gCanvas.getContext('webgl2');
     if (!gl) alert("WebGL 2.0 isn't available");
 
+    gCorBoids = sorteieCorRGBA();
+    gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.07, 0.5, 0.5, [1,0,0,1]));
 
-    gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.12, 0.5, 0.5, [1,0,0,1]));
+    cria_boid();
+
     gLider = gObjetos[0];
 
-    let cor =  sorteieCorRGBA();
-    for (let i=0; i<gN; i++)
-    {
-        gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.06, 0.5, 0.5, cor));
-    }
-
-
+    // Cria os shaders
     crieShaders();
 
+    // Limpa o fundo
     gl.clearColor(FUNDO[0], FUNDO[1], FUNDO[2], FUNDO[3]);
 
+    //Desenha do frame
     desenhe();
+
+    // Callback
+    window.onkeydown = callbackKeyDown;
 }
 
+// -----------------------------------------------------------------------------------------
 
-function crieShaders() {
+function cria_boid()
+{
+    gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.06, 0.5, 0.5, gCorBoids));
+}
+
+// -----------------------------------------------------------------------------------------
+
+function crieShaders()
+{
     //  cria o programa
     gShader.program = makeProgram(gl, gVertexShaderSrc, gFragmentShaderSrc);
     gl.useProgram(gShader.program);
 
     // carrega dados na GPU
-    gShader.bufPosicoes = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, gShader.bufPosicoes);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(gPosicoes), gl.STATIC_DRAW);
+    gBufPosicoes = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, gBufPosicoes);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(gPosicoes), gl.DYNAMIC_DRAW);
 
-    // Associa as variáveis do shader ao buffer gPosicoes
+
     var aPositionLoc = gl.getAttribLocation(gShader.program, "aPosition");
-    // Configuração do atributo para ler do buffer
-    // atual ARRAY_BUFFER
-    let size = 2;          // 2 elementos de cada vez - vec2
-    let type = gl.FLOAT;   // tipo de 1 elemento = float 32 bits
-    let normalize = false; // não normalize os dados
-    let stride = 0;        // passo, quanto avançar a cada iteração depois de size*sizeof(type)
-    let offset = 0;        // começo do buffer
-    gl.vertexAttribPointer(aPositionLoc, size, type, normalize, stride, offset);
+    gl.vertexAttribPointer(aPositionLoc, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(aPositionLoc);
 
     // buffer de cores
     gBufCores = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, gBufCores);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(gCores), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER ,gBufCores);
+    gl.bufferData(gl.ARRAY_BUFFER,flatten(gCores), gl.DYNAMIC_DRAW);
+
     var aColorLoc = gl.getAttribLocation(gShader.program, "aColor");
     gl.vertexAttribPointer(aColorLoc, 4, gl.FLOAT, true, 0, 0);
     gl.enableVertexAttribArray(aColorLoc);
@@ -93,7 +97,10 @@ function crieShaders() {
 
 }
 
-function desenhe() {
+// -----------------------------------------------------------------------------------------
+
+function desenhe()
+{
     let now = Date.now();
     let delta = (now - gUltimoT) / 1000;
     gUltimoT = now;
@@ -101,18 +108,75 @@ function desenhe() {
 
     // desenha vertices
     gPosicoes = [];
-    for (let i = 0; i < gObjetos.length; i++)
-        gObjetos[i].atualize(delta);
-
-    // atualiza o buffer de vertices
-    gl.bindBuffer(gl.ARRAY_BUFFER, gShader.bufPosicoes);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(gPosicoes), gl.STATIC_DRAW);
-
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawArrays(gl.TRIANGLES, 0, gPosicoes.length);
+    if (!gPause)
+        Atualiza(delta)
 
     window.requestAnimationFrame(desenhe);
 }
+
+// -----------------------------------------------------------------------------------------
+
+function callbackKeyDown(event)
+{
+    const keyName = event.key;
+    switch (keyName)
+    {
+        case "p":
+            gPause = !gPause;
+            break;
+        case "ArrowUp":
+            gLider.vel[1] += gDeltaControl;
+            break;
+        case "ArrowDown":
+            gLider.vel[1] -= gDeltaControl;
+            break;
+        case "ArrowLeft":
+            gLider.vel[0] -= gDeltaControl;
+            break;
+        case "ArrowRight":
+            gLider.vel[0] += gDeltaControl;
+            break;
+        case "+":
+            gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.06, 0.5, 0.5, gCorBoids));
+
+            break;
+        case "-":
+            if (gObjetos.length > 1)
+            {
+                let tam = gObjetos.length;
+                let i = sorteieInteiro(1, tam-1)
+                gObjetos.splice(i, 1)
+                gCores.splice(i*3, 3);
+            }
+            break;
+    }
+}
+
+// -----------------------------------------------------------------------------------------
+// Atualiza as posições
+
+function Atualiza(delta)
+{
+    for (let i = 0; i < gObjetos.length; i++)
+    {
+       gObjetos[i].atualize(delta);
+    }
+
+    // atualiza o buffer de vertices
+    gl.bindBuffer(gl.ARRAY_BUFFER, gBufPosicoes);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(gPosicoes), gl.DYNAMIC_DRAW);
+
+
+    gl.bindBuffer(gl.ARRAY_BUFFER ,gBufCores);
+    gl.bufferData(gl.ARRAY_BUFFER,flatten(gCores), gl.DYNAMIC_DRAW);
+
+
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, gPosicoes.length);
+}
+
+// -----------------------------------------------------------------------------------------
+// Gera os vertices do triangulo
 
 function aproximeTriangulo(raio)
 {
@@ -121,6 +185,9 @@ function aproximeTriangulo(raio)
         vec4(raio/3, 0, 0, 1),
         vec4(-raio/3, 0, 0, 1) ]
 }
+
+// -----------------------------------------------------------------------------------------
+// Gera o triangulo
 
 function Triangulo (x, y, r, vx, vy, cor)
 {
@@ -141,12 +208,10 @@ function Triangulo (x, y, r, vx, vy, cor)
         let matriz_r = rotate(0, vec3(0,0,1));
         let matriz_t = translate(x, y, 0);
         let M = mult(matriz_t, matriz_r)
-
         vert[i] = mult(M, vert[i]);
         gPosicoes.push(vec2(vert[i][0], vert[i][1]))
     }
     gPosicoes.push(vec2(vert[0][0], vert[0][1]))
-
     gCores.push(cor);
     gCores.push(cor);
     gCores.push(cor);
@@ -175,21 +240,19 @@ function Triangulo (x, y, r, vx, vy, cor)
         // Atualizacoes para quem nao e lider
         if (this !== gLider)
         {
-
             // Mantem a distancia
             {
                 let c = vec4(0,0,0,0);
                 let k = 0;
-                for(let i=1; i<gObjetos.length; i++)
+                for(let i=0; i<gObjetos.length; i++)
                 {
                     let obj = gObjetos[i];
 
                     if (obj !== this)
                     {
-                        k++
                         let vetor = subtract(gObjetos[i].pos, this.pos);
                         let d = length(vetor);
-                        if (d < gRaio) { c = subtract(c, vetor); }
+                        if (d < 0.05) { c = subtract(c, vetor); }
                     }
                 }
                 this.vel = add(this.vel, c);
@@ -201,21 +264,19 @@ function Triangulo (x, y, r, vx, vy, cor)
 
                 for(let i=0; i<gObjetos.length; i++)
                 {
-                    let k = 0;
                     let obj = gObjetos[i]
-
-                    if (obj !== this) { total = add(total, obj.vel); k++; }
+                    if (obj !== this) { total = add(total, obj.vel);}
                 }
 
-                total = mult(1.0/(gObjetos.length-2), total);
+                total = mult(1.0/(gObjetos.length-1), total);
                 let vetor = subtract(total, this.vel);
-                vetor = mult(0.05, vetor)
+                vetor = mult(0.01*gObjetos.length, vetor)
                 this.vel = add(this.vel, vetor);
             }
         }
 
 
-        this.novo_theta = cut((Math.atan2(this.vel[1], this.vel[0]) * 180)/Math.PI);
+        this.novo_theta = ((Math.atan2(this.vel[1], this.vel[0]) * 180)/Math.PI);
         let nv = this.nv;
         let vert = this.vertices;
 
@@ -246,18 +307,15 @@ function Triangulo (x, y, r, vx, vy, cor)
     }
 }
 
+// -----------------------------------------------------------------------------------------
+// Gera um numero real entre -1 e 1
+
 function sorteie_pos_norm()
 {
     return (Math.random() * 2) -1;
 }
 
-function sorteie_inter_norm(a, b)
-{
-    return (Math.random() * 2*b) + a;
-}
-
-
-// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------
 // Código fonte do Webgl em GLSL
 
 gVertexShaderSrc = `#version 300 es
@@ -267,8 +325,8 @@ in vec2 aPosition;
 in vec4 aColor;  // buffer com a cor de cada vértice
 out vec4 vColor; // varying -> passado ao fShader
 
-void main() {
-
+void main() 
+{
     gl_Position = vec4(aPosition, 0, 1);
     vColor = aColor; 
 }
