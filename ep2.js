@@ -1,3 +1,9 @@
+/*
+    EP02 de MAC0420/MAC5744 - Simulação de movimento coletivo
+
+    Nome: Marcelo Nascimento
+    NUSP: 11222012
+ */
 
 "use strict";
 
@@ -22,7 +28,7 @@ var gObjetos = [];
 var gUltimoT = Date.now();
 var gLider;
 var gPause = false;
-var gCorBoids;
+var gCorBoids = sorteieCorRGBA();
 var gBufPosicoes
 
 // -----------------------------------------------------------------------------------------
@@ -31,17 +37,15 @@ window.onload = main;
 
 // -----------------------------------------------------------------------------------------
 
-function main() {
+function main()
+{
     // Cria o canvas
     gCanvas = document.getElementById("glcanvas");
     gl = gCanvas.getContext('webgl2');
     if (!gl) alert("WebGL 2.0 isn't available");
 
-    gCorBoids = sorteieCorRGBA();
+    // lider
     gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.07, 0.5, 0.5, [1,0,0,1]));
-
-    cria_boid();
-
     gLider = gObjetos[0];
 
     // Cria os shaders
@@ -58,6 +62,7 @@ function main() {
 }
 
 // -----------------------------------------------------------------------------------------
+// Cria um boid com posição aleatoria.
 
 function cria_boid()
 {
@@ -65,6 +70,7 @@ function cria_boid()
 }
 
 // -----------------------------------------------------------------------------------------
+// Cria os shaders
 
 function crieShaders()
 {
@@ -98,6 +104,7 @@ function crieShaders()
 }
 
 // -----------------------------------------------------------------------------------------
+// Desenha a cena
 
 function desenhe()
 {
@@ -115,6 +122,7 @@ function desenhe()
 }
 
 // -----------------------------------------------------------------------------------------
+// Callback das teclas
 
 function callbackKeyDown(event)
 {
@@ -137,8 +145,7 @@ function callbackKeyDown(event)
             gLider.vel[0] += gDeltaControl;
             break;
         case "+":
-            gObjetos.push(new Triangulo(sorteie_pos_norm(), sorteie_pos_norm(), 0.06, 0.5, 0.5, gCorBoids));
-
+            cria_boid()
             break;
         case "-":
             if (gObjetos.length > 1)
@@ -216,6 +223,7 @@ function Triangulo (x, y, r, vx, vy, cor)
     gCores.push(cor);
     gCores.push(cor);
 
+    // Atuaiiza o obj
     this.atualize = function (delta)
     {
         this.pos = add(this.pos, mult(delta, this.vel));
@@ -243,7 +251,6 @@ function Triangulo (x, y, r, vx, vy, cor)
             // Mantem a distancia
             {
                 let c = vec4(0,0,0,0);
-                let k = 0;
                 for(let i=0; i<gObjetos.length; i++)
                 {
                     let obj = gObjetos[i];
